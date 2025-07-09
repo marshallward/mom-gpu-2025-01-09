@@ -38,7 +38,7 @@
               background-size: cover;">
 
     <header style="width: 10vh; position: absolute; bottom: 2vh; right: 2vh;">
-      <img src="img/noaa_logo.png">
+      <!-- img src="img/noaa_logo.png" -->
     </header>
 
     <footer style="font-size: 1pc; position: absolute; bottom: 2%; left: 2%;">
@@ -98,7 +98,7 @@
 </dd>
 <dt>do concurrent</dt>
 <dd>
-<p>Language-intrinsic, best performnace (so far)</p>
+<p>Fortran intrinsics, best performance (so far)</p>
 </dd>
 </dl>
 </section>
@@ -114,7 +114,7 @@ do k=1,nz
   enddo ; enddo
 enddo
 !$omp end target</code></pre>
-<p><code>do concurrent</code> was simpler, and faster:</p>
+<p><code>do concurrent</code> was simpler, and faster</p>
 <pre class="fortran"><code>do k=1,nz
   do concurrent(I=Isq:Ieq, j=js:je)
     u_bc_accel(I,j,k) = (CS%CAu_pred(I,j,k) + CS%PFu(I,j,k)) + CS%diffu(I,j,k)
@@ -144,17 +144,20 @@ the data is already on the GPU!</p>
 </section></section>
 <section id="experiments" class="title-slide slide level1">
 <h1>Experiments</h1>
+<p>Two test configurations</p>
 <ul>
 <li><p><code>double_gyre</code></p>
 <ul>
 <li>Idealized adiabatic layers</li>
+<li>Mostly just <em>dynamic core</em></li>
 </ul></li>
 <li><p><code>benchmark</code></p>
 <ul>
 <li>Thermodynamics</li>
 </ul></li>
-<li><p>...?</p></li>
 </ul>
+<p>Prioritize <code>double_gyre</code>, but ensure
+<code>benchmark</code> works.</p>
 </section>
 
 <section id="development" class="title-slide slide level1">
@@ -173,14 +176,14 @@ href="https://github.com/marshallward/mom6-gpu-report/">https://github.com/marsh
 </dl>
 </section>
 
-<section id="dyncore-status" class="title-slide slide level1">
-<h1>Dyncore Status</h1>
+<section id="dyncore-progress" class="title-slide slide level1">
+<h1>Dyncore Progress</h1>
 <table>
 <tbody>
 <tr>
 <td><a
 href="https://github.com/edoyango/MOM6/blob/elemental-zonal_flux_layer/src/core/MOM_continuity_PPM.F90">Continuity</a></td>
-<td><strong>(Testing)</strong></td>
+<td>Testing on GPU</td>
 </tr>
 <tr>
 <td><a
@@ -212,7 +215,7 @@ Force</a></td>
 </tr>
 </tbody>
 </table>
-<p>Bitwise-equivalent answers to CPU</p>
+<p>GPU and CPU are bitwise-equivalent</p>
 </section>
 
 <section>

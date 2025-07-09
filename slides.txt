@@ -34,7 +34,7 @@ OpenMP
    More platform-independent, mostly equivalent
 
 do concurrent
-   Language-intrinsic, best performnace (so far)
+   Fortran intrinsics, best performance (so far)
 
 
 Implementation
@@ -53,7 +53,7 @@ Explicit kernels were ok but less performant
    enddo
    !$omp end target
 
-``do concurrent`` was simpler, and faster:
+``do concurrent`` was simpler, and faster
 
 .. code:: fortran
 
@@ -95,15 +95,18 @@ already on the GPU!
 Experiments
 ===========
 
+Two test configurations
+
 * ``double_gyre``
 
    - Idealized adiabatic layers
+   - Mostly just *dynamic core*
 
 * ``benchmark``
 
    - Thermodynamics
 
-* ...?
+Prioritize ``double_gyre``, but ensure ``benchmark`` works.
 
 
 Development
@@ -116,11 +119,11 @@ Design document
    https://github.com/marshallward/mom6-gpu-report/
 
 
-Dyncore Status
-==============
+Dyncore Progress
+================
 
 ======================= =========================
-Continuity_             **(Testing)**
+Continuity_             Testing on GPU
 Barotropic_             **Finished** (\*)
 `Vertical Viscosity`_   kji refactor complete
 `Horizontal Viscosity`_ **Finished**
@@ -128,7 +131,7 @@ Barotropic_             **Finished** (\*)
 `Pressure Force`_       **Finished**
 ======================= =========================
 
-Bitwise-equivalent answers to CPU
+GPU and CPU are bitwise-equivalent
 
 .. _Continuity: https://github.com/edoyango/MOM6/blob/elemental-zonal_flux_layer/src/core/MOM_continuity_PPM.F90
 .. _Barotropic: https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_barotropic.F90
