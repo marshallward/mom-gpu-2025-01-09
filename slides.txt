@@ -1,0 +1,157 @@
+===============
+MOM6 GPU Update
+===============
+
+:author: Marshall Ward
+:organization: NOAA-GFDL
+:description: Update of MOM6 GPU activities
+:date: 2025-07-08
+
+
+Collaborators
+=============
+
+* GFDL
+
+   - **Marshall Ward**
+   - Alistair Adcroft
+   - Robert Hallberg
+
+* ACCESS-NRI (Australia)
+
+   - **Ed Yang**
+   - Jorge Galvez Vallejo
+   - Micael Oliveira
+
+
+Frameworks
+==========
+
+OpenACC
+   Intially successful, but NVIDIA-specific.
+
+OpenMP
+   More platform-independent, mostly equivalent
+
+do concurrent
+   Language-intrinsic, best performnace (so far)
+
+
+Adoption
+========
+
+Explicit kernels were ok but less performant
+
+.. code:: fortran
+
+   !$omp target
+   do k=1,nz
+     !$omp parallel loop collapse(2)
+     do j=js,je ; do I=Isq,Ieq
+       u_bc_accel(I,j,k) = (CS%CAu_pred(I,j,k) + CS%PFu(I,j,k)) + CS%diffu(I,j,k)
+     enddo ; enddo
+   enddo
+   !$omp end target
+
+``do concurrent`` was simpler, and faster:
+
+.. code:: fortran
+
+   do k=1,nz
+     do concurrent(I=Isq:Ieq, j=js:je)
+       u_bc_accel(I,j,k) = (CS%CAu_pred(I,j,k) + CS%PFu(I,j,k)) + CS%diffu(I,j,k)
+     enddo
+   enddo
+
+
+Hybrid Approach
+===============
+
+Move data with OpenMP, kernels with ``do concurrent``
+
+.. code:: fortran
+
+   !$omp target enter data map(to: G, G%mask2dT, G%areaT)
+   !$omp target enter data map(alloc: Area_h)
+
+   do concurrent (I=Isq-1:Ieq+2, j=Jsq-1:Jeq+2)
+     Area_h(i,j) = G%mask2dT(i,j) * G%areaT(i,j)
+   enddo
+
+   !$omp target exit data map(from: Area_h)
+
+.. Runtime dropped by 1/3: 29s -> 23s
+
+
+Managed memory?
+---------------
+
+``do concurrent`` is conservative: it tends to copy, even if the data is
+already on the GPU!
+
+"Managed" memory was slow (30s -> 180s), so we are doing *manual management*
+
+
+Experiments
+===========
+
+* ``double_gyre``
+
+   - Idealized adiabatic layers
+
+* ``benchmark``
+
+   - Thermodynamics
+
+* ``OM5``?
+
+   - ALE solvers
+
+
+Dyncore Status
+==============
+
+====================    =========================
+Continuity              **Testing** (jki)
+Barotropic              **Finished** (untuned)
+Vertical Viscosity      kji refactor complete
+Horizontal Viscosity    **Finished**
+Coriolis + KE           **Finished**
+Pressure Force          **Finished**
+====================    =========================
+
+Bitwise-equivalent answers to CPU
+
+
+Scaling (so far)
+================
+
+.. image:: img/gpu_scaling.png
+
+
+Resources
+=========
+
+* NVIDIA
+
+   * A100s (Princeton)
+   * H100
+   * Grace Hopper (soon)
+
+* AMD
+
+   * MI300s
+
+
+Next Steps
+==========
+
+Immediate goals
+
+* Finish the dynamic core
+
+* Port benchmark
+
+* Investigate scaling (esp wrt CPU)
+
+* GPU communication?
