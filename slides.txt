@@ -120,8 +120,8 @@ Dyncore Status
 ==============
 
 ======================= =========================
-Continuity_             **Testing** (jki)
-Barotropic_             **Finished** (untuned)
+Continuity_             **(Testing)**
+Barotropic_             **Finished** (\*)
 `Vertical Viscosity`_   kji refactor complete
 `Horizontal Viscosity`_ **Finished**
 `Coriolis/MomFlux`_     **Finished**
@@ -195,7 +195,7 @@ H100 opt vs CPU
 Current Goals
 =============
 
-* OpenMP and ``do concurrent`` proficiency
+* Proficiency with OpenMP and ``do concurrent``
 
 * Majority of dynamic core ported to GPU
   
@@ -207,12 +207,27 @@ Current Goals
 Next Steps
 ==========
 
-Immediate goals
+* Complete ``double_gyre``
 
-* Finish the dynamic core
+  * Finish continuity and vertical viscosity
 
-* Port benchmark
+  * Work through dyncore loop and misc
 
-* Investigate scaling (esp wrt CPU)
+  * Resolve any scaling issues
 
-* GPU communication?
+* Repeat for ``benchmark``
+
+  * Equation of state (T, S, ...)
+
+* Investigate GPU performance limits?
+
+
+Long term
+=========
+
+* Realistic configurations (OM5?)
+
+* Extreme scaling (multinode GPU)
+
+* Synchronization with TURBO effort
+

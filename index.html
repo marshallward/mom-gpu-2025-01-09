@@ -180,12 +180,12 @@ href="https://github.com/marshallward/mom6-gpu-report/">https://github.com/marsh
 <tr>
 <td><a
 href="https://github.com/edoyango/MOM6/blob/elemental-zonal_flux_layer/src/core/MOM_continuity_PPM.F90">Continuity</a></td>
-<td><strong>Testing</strong> (jki)</td>
+<td><strong>(Testing)</strong></td>
 </tr>
 <tr>
 <td><a
 href="https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_barotropic.F90">Barotropic</a></td>
-<td><strong>Finished</strong> (untuned)</td>
+<td><strong>Finished</strong> (*)</td>
 </tr>
 <tr>
 <td><a
@@ -264,7 +264,7 @@ Force</a></td>
 <section id="current-goals" class="title-slide slide level1">
 <h1>Current Goals</h1>
 <ul>
-<li>OpenMP and <code>do concurrent</code> proficiency</li>
+<li>Proficiency with OpenMP and <code>do concurrent</code></li>
 <li>Majority of dynamic core ported to GPU</li>
 <li>Good scaling so far?
 <ul>
@@ -275,12 +275,27 @@ Force</a></td>
 
 <section id="next-steps" class="title-slide slide level1">
 <h1>Next Steps</h1>
-<p>Immediate goals</p>
 <ul>
-<li>Finish the dynamic core</li>
-<li>Port benchmark</li>
-<li>Investigate scaling (esp wrt CPU)</li>
-<li>GPU communication?</li>
+<li>Complete <code>double_gyre</code>
+<ul>
+<li>Finish continuity and vertical viscosity</li>
+<li>Work through dyncore loop and misc</li>
+<li>Resolve any scaling issues</li>
+</ul></li>
+<li>Repeat for <code>benchmark</code>
+<ul>
+<li>Equation of state (T, S, ...)</li>
+</ul></li>
+<li>Investigate GPU performance limits?</li>
+</ul>
+</section>
+
+<section id="long-term" class="title-slide slide level1">
+<h1>Long term</h1>
+<ul>
+<li>Realistic configurations (OM5?)</li>
+<li>Extreme scaling (multinode GPU)</li>
+<li>Synchronization with TURBO effort</li>
 </ul>
 </section>
     </div>
