@@ -37,8 +37,8 @@ do concurrent
    Language-intrinsic, best performnace (so far)
 
 
-Adoption
-========
+Implementation
+==============
 
 Explicit kernels were ok but less performant
 
@@ -103,24 +103,39 @@ Experiments
 
    - Thermodynamics
 
-* ``OM5``?
+* ...?
 
-   - ALE solvers
+
+Development
+===========
+
+Source repo: ``dev/gpu``
+   https://github.com/marshallward/MOM6/tree/dev/gpu 
+
+Design document
+   https://github.com/marshallward/mom6-gpu-report/
 
 
 Dyncore Status
 ==============
 
-====================    =========================
-Continuity              **Testing** (jki)
-Barotropic              **Finished** (untuned)
-Vertical Viscosity      kji refactor complete
-Horizontal Viscosity    **Finished**
-Coriolis + KE           **Finished**
-Pressure Force          **Finished**
-====================    =========================
+======================= =========================
+Continuity_             **Testing** (jki)
+Barotropic_             **Finished** (untuned)
+`Vertical Viscosity`_   kji refactor complete
+`Horizontal Viscosity`_ **Finished**
+`Coriolis/MomFlux`_     **Finished**
+`Pressure Force`_       **Finished**
+======================= =========================
 
 Bitwise-equivalent answers to CPU
+
+.. _Continuity: https://github.com/edoyango/MOM6/blob/elemental-zonal_flux_layer/src/core/MOM_continuity_PPM.F90
+.. _Barotropic: https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_barotropic.F90
+.. _Vertical Viscosity: https://github.com/marshallward/MOM6/blob/dev/gpu/src/parameterizations/vertical/MOM_vert_friction.F90
+.. _Horizontal Viscosity: https://github.com/marshallward/MOM6/blob/dev/gpu/src/parameterizations/lateral/MOM_hor_visc.F90
+.. _Coriolis/MomFlux: https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_CoriolisAdv.F90
+.. _Pressure Force: https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_PressureForce_FV.F90
 
 
 Scaling (so far)
@@ -129,18 +144,64 @@ Scaling (so far)
 .. image:: img/gpu_scaling.png
 
 
+Optimized
+---------
+
+.. image:: img/gpu_scaling_opt.png
+
+
+GPU vs CPU
+==========
+
+.. image:: img/gpu_vs_cpu.png
+
+(1 → 4 → 16 cores)
+
+
 Resources
 =========
 
 * NVIDIA
 
-   * A100s (Princeton)
+   * A100
    * H100
-   * Grace Hopper (soon)
+   * Grace Hopper (?)
 
 * AMD
 
-   * MI300s
+   * MI300
+
+
+A100 vs H100
+============
+
+.. image:: img/a100_vs_h100.png
+
+
+H100 vs CPU
+===========
+
+.. image:: img/h100_vs_cpu.png
+
+
+H100 opt vs CPU
+---------------
+
+.. image:: img/h100_o2_vs_cpu_o0.png
+
+(CPU with ``-O2`` has runtime errors... 🤷)
+
+
+Current Goals
+=============
+
+* OpenMP and ``do concurrent`` proficiency
+
+* Majority of dynamic core ported to GPU
+  
+* Good scaling so far?
+
+  - CPU-competitive? 😶
 
 
 Next Steps

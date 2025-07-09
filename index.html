@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Marshall Ward">
+  <meta name="dcterms.date" content="2025-07-08">
+  <title>MOM6 GPU Update</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="./reveal.js/dist/reveal.css">
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <link rel="stylesheet" href="./reveal.js/css/theme/gfdl.css" id="theme">
+  <!-- Explicitly add zenburn for highlight support -->
+  <link rel="stylesheet" href="./reveal.js/plugin/highlight/zenburn.css" id="theme">
+  <!-- Printing and PDF exports -->
+  <script>
+    var link = document.createElement( 'link' );
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = window.location.search.match( /print-pdf/gi ) ? './reveal.js/css/print/pdf.scss' : './reveal.js/css/print/paper.scss';
+    document.getElementsByTagName( 'head' )[0].appendChild( link );
+  </script>
+  <!--[if lt IE 9]>
+  <script src="./reveal.js/lib/js/html5shiv.js"></script>
+  <![endif]-->
+  <base href="./index.html">
+</head>
+<body>
+  <div class="reveal"
+       style="background: url(img/bg_gfdl.jpg);
+              background-size: cover;">
+
+    <header style="width: 10vh; position: absolute; bottom: 2vh; right: 2vh;">
+      <img src="img/noaa_logo.png">
+    </header>
+
+    <footer style="font-size: 1pc; position: absolute; bottom: 2%; left: 2%;">
+      <code></code>
+    </footer>
+
+    <div class="slides">
+
+<section id="title-slide">
+  <!--div class="reveal" style="text-align: right;">
+    <img src="img/noaa_logo.png"
+         style="background: none; border: none; box-shadow: none;
+         width: 30%"
+         alt="NCI">
+  </div-->
+  <h1 class="title">MOM6 GPU Update</h1>
+<div id="author" class="author" style="text-align: right;">
+  <p class="author" style="text-align: right;">Marshall Ward</p>
+</div>
+  <!-- org has a <p> for some reason... so use <div> -->
+  <div class="organization" style="text-align: right;"><p>NOAA-GFDL</p></div>
+  <p class="date" style="text-align: right;">2025-07-08</p>
+  <!-- Currently cannot add notes to a title slide, so have to do manually-->
+  <aside class="notes">
+    
+  </aside>
+</section>
+
+<section id="collaborators" class="title-slide slide level1">
+<h1>Collaborators</h1>
+<ul>
+<li><p>GFDL</p>
+<ul>
+<li><strong>Marshall Ward</strong></li>
+<li>Alistair Adcroft</li>
+<li>Robert Hallberg</li>
+</ul></li>
+<li><p>ACCESS-NRI (Australia)</p>
+<ul>
+<li><strong>Ed Yang</strong></li>
+<li>Jorge Galvez Vallejo</li>
+<li>Micael Oliveira</li>
+</ul></li>
+</ul>
+</section>
+
+<section id="frameworks" class="title-slide slide level1">
+<h1>Frameworks</h1>
+<dl>
+<dt>OpenACC</dt>
+<dd>
+<p>Intially successful, but NVIDIA-specific.</p>
+</dd>
+<dt>OpenMP</dt>
+<dd>
+<p>More platform-independent, mostly equivalent</p>
+</dd>
+<dt>do concurrent</dt>
+<dd>
+<p>Language-intrinsic, best performnace (so far)</p>
+</dd>
+</dl>
+</section>
+
+<section id="implementation" class="title-slide slide level1">
+<h1>Implementation</h1>
+<p>Explicit kernels were ok but less performant</p>
+<pre class="fortran"><code>!$omp target
+do k=1,nz
+  !$omp parallel loop collapse(2)
+  do j=js,je ; do I=Isq,Ieq
+    u_bc_accel(I,j,k) = (CS%CAu_pred(I,j,k) + CS%PFu(I,j,k)) + CS%diffu(I,j,k)
+  enddo ; enddo
+enddo
+!$omp end target</code></pre>
+<p><code>do concurrent</code> was simpler, and faster:</p>
+<pre class="fortran"><code>do k=1,nz
+  do concurrent(I=Isq:Ieq, j=js:je)
+    u_bc_accel(I,j,k) = (CS%CAu_pred(I,j,k) + CS%PFu(I,j,k)) + CS%diffu(I,j,k)
+  enddo
+enddo</code></pre>
+</section>
+
+<section>
+<section id="hybrid-approach" class="title-slide slide level1">
+<h1>Hybrid Approach</h1>
+<p>Move data with OpenMP, kernels with <code>do concurrent</code></p>
+<pre class="fortran"><code>!$omp target enter data map(to: G, G%mask2dT, G%areaT)
+!$omp target enter data map(alloc: Area_h)
+
+do concurrent (I=Isq-1:Ieq+2, j=Jsq-1:Jeq+2)
+  Area_h(i,j) = G%mask2dT(i,j) * G%areaT(i,j)
+enddo
+
+!$omp target exit data map(from: Area_h)</code></pre>
+</section>
+<section id="managed-memory" class="slide level2">
+<h2>Managed memory?</h2>
+<p><code>do concurrent</code> is conservative: it tends to copy, even if
+the data is already on the GPU!</p>
+<p>"Managed" memory was slow (30s -&gt; 180s), so we are doing
+<em>manual management</em></p>
+</section></section>
+<section id="experiments" class="title-slide slide level1">
+<h1>Experiments</h1>
+<ul>
+<li><p><code>double_gyre</code></p>
+<ul>
+<li>Idealized adiabatic layers</li>
+</ul></li>
+<li><p><code>benchmark</code></p>
+<ul>
+<li>Thermodynamics</li>
+</ul></li>
+<li><p>...?</p></li>
+</ul>
+</section>
+
+<section id="development" class="title-slide slide level1">
+<h1>Development</h1>
+<dl>
+<dt>Source repo: <code>dev/gpu</code></dt>
+<dd>
+<p><a
+href="https://github.com/marshallward/MOM6/tree/dev/gpu">https://github.com/marshallward/MOM6/tree/dev/gpu</a></p>
+</dd>
+<dt>Design document</dt>
+<dd>
+<p><a
+href="https://github.com/marshallward/mom6-gpu-report/">https://github.com/marshallward/mom6-gpu-report/</a></p>
+</dd>
+</dl>
+</section>
+
+<section id="dyncore-status" class="title-slide slide level1">
+<h1>Dyncore Status</h1>
+<table>
+<tbody>
+<tr>
+<td><a
+href="https://github.com/edoyango/MOM6/blob/elemental-zonal_flux_layer/src/core/MOM_continuity_PPM.F90">Continuity</a></td>
+<td><strong>Testing</strong> (jki)</td>
+</tr>
+<tr>
+<td><a
+href="https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_barotropic.F90">Barotropic</a></td>
+<td><strong>Finished</strong> (untuned)</td>
+</tr>
+<tr>
+<td><a
+href="https://github.com/marshallward/MOM6/blob/dev/gpu/src/parameterizations/vertical/MOM_vert_friction.F90">Vertical
+Viscosity</a></td>
+<td>kji refactor complete</td>
+</tr>
+<tr>
+<td><a
+href="https://github.com/marshallward/MOM6/blob/dev/gpu/src/parameterizations/lateral/MOM_hor_visc.F90">Horizontal
+Viscosity</a></td>
+<td><strong>Finished</strong></td>
+</tr>
+<tr>
+<td><a
+href="https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_CoriolisAdv.F90">Coriolis/MomFlux</a></td>
+<td><strong>Finished</strong></td>
+</tr>
+<tr>
+<td><a
+href="https://github.com/marshallward/MOM6/blob/dev/gpu/src/core/MOM_PressureForce_FV.F90">Pressure
+Force</a></td>
+<td><strong>Finished</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Bitwise-equivalent answers to CPU</p>
+</section>
+
+<section>
+<section id="scaling-so-far" class="title-slide slide level1">
+<h1>Scaling (so far)</h1>
+<p><img data-src="img/gpu_scaling.png" alt="image" /></p>
+</section>
+<section id="optimized" class="slide level2">
+<h2>Optimized</h2>
+<p><img data-src="img/gpu_scaling_opt.png" alt="image" /></p>
+</section></section>
+<section id="gpu-vs-cpu" class="title-slide slide level1">
+<h1>GPU vs CPU</h1>
+<p><img data-src="img/gpu_vs_cpu.png" alt="image" /></p>
+<p>(1 → 4 → 16 cores)</p>
+</section>
+
+<section id="resources" class="title-slide slide level1">
+<h1>Resources</h1>
+<ul>
+<li><p>NVIDIA</p>
+<ul>
+<li>A100</li>
+<li>H100</li>
+<li>Grace Hopper (?)</li>
+</ul></li>
+<li><p>AMD</p>
+<ul>
+<li>MI300</li>
+</ul></li>
+</ul>
+</section>
+
+<section id="a100-vs-h100" class="title-slide slide level1">
+<h1>A100 vs H100</h1>
+<p><img data-src="img/a100_vs_h100.png" alt="image" /></p>
+</section>
+
+<section>
+<section id="h100-vs-cpu" class="title-slide slide level1">
+<h1>H100 vs CPU</h1>
+<p><img data-src="img/h100_vs_cpu.png" alt="image" /></p>
+</section>
+<section id="h100-opt-vs-cpu" class="slide level2">
+<h2>H100 opt vs CPU</h2>
+<p><img data-src="img/h100_o2_vs_cpu_o0.png" alt="image" /></p>
+<p>(CPU with <code>-O2</code> has runtime errors... 🤷)</p>
+</section></section>
+<section id="current-goals" class="title-slide slide level1">
+<h1>Current Goals</h1>
+<ul>
+<li>OpenMP and <code>do concurrent</code> proficiency</li>
+<li>Majority of dynamic core ported to GPU</li>
+<li>Good scaling so far?
+<ul>
+<li>CPU-competitive? 😶</li>
+</ul></li>
+</ul>
+</section>
+
+<section id="next-steps" class="title-slide slide level1">
+<h1>Next Steps</h1>
+<p>Immediate goals</p>
+<ul>
+<li>Finish the dynamic core</li>
+<li>Port benchmark</li>
+<li>Investigate scaling (esp wrt CPU)</li>
+<li>GPU communication?</li>
+</ul>
+</section>
+    </div>
+  </div>
+
+  <script src="./reveal.js/dist/reveal.js"></script>
+  <script src="./reveal.js/plugin/math/math.js"></script>
+  <script src="./reveal.js/plugin/notes/notes.js"></script>
+  <script src="./reveal.js/plugin/highlight/highlight.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://github.com/hakimel/reveal.js#configuration
+      Reveal.initialize({
+        // Display controls in the bottom right corner
+        controls: true,
+        // Display a presentation progress bar
+        progress: true,
+        // Display the page number of the current slide
+        slideNumber: true,
+        // Push each slide change to the browser history
+        history: true,
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+        // Enable the slide overview mode
+        overview: true,
+        // Vertical centering of slides
+        center: true,
+        // Enables touch navigation on devices with touch input
+        touch: true,
+        // Turns fragments on and off globally
+        fragments: true,
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+        // Transition style
+        transition: 'slide', // none/fade/slide/convex/concave/zoom
+        // Transition speed
+        transitionSpeed: 'default', // default/fast/slow
+        // Transition style for full page slide backgrounds
+        backgroundTransition: 'fade', // none/fade/slide/convex/concave/zoom
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+        math: {
+          //mathjax: 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js',
+          mathjax: 'https://cdn.jsdelivr.net/gh/mathjax/mathjax@2.7.9/MathJax.js',
+          config: 'TeX-AMS_HTML-full',
+          "HTML-CSS": {
+              preferredFont: "Neo-Euler",
+              //preferredFont: "Asana-Math",
+          },
+          //TeX: {
+          //  inlineMath: [['\\(','\\)']],
+          //  displayMath: [['\\[','\\]']],
+          //  balanceBraces: true,
+          //  processEscapes: false,
+          //  processRefs: true,
+          //  processEnvironments: true,
+          //  preview: 'TeX',
+          //  skipTags: ['script','noscript','style','textarea','pre','code'],
+          //  ignoreClass: 'tex2jax_ignore',
+          //  processClass: 'tex2jax_process'
+          //},
+        },
+
+        // Optional reveal.js plugins
+        dependencies: [
+          { src: './reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: './reveal.js/plugin/zoom/zoom.js', async: true },
+          { src: './reveal.js/plugin/notes/notes.js', async: true }
+        ],
+        plugins : [ RevealMath, RevealNotes, RevealHighlight],
+        pdfMaxPagesPerSlide: 1,
+      });
+    </script>
+    </body>
+</html>
